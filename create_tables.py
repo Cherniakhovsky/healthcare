@@ -30,14 +30,14 @@ def execute_commands(cur):
         """
         CREATE TABLE IF NOT EXISTS patient (
             id serial primary key,
-            source_id uuid NOT NULL,
+            source_id text NOT NULL,
             birth_date date,
             gender varchar(10),
-            race_code varchar(40),
+            race_code varchar(20),
             race_code_system varchar(40),
-            ethnicity_code varchar(40),
+            ethnicity_code varchar(20),
             ethnicity_code_system varchar(40),
-            country varchar(40)
+            country varchar(30)
         )
         """,
         """
@@ -79,6 +79,9 @@ def execute_commands(cur):
     )
     for command in commands:
         cur.execute(command)
+
+    cur.execute("INSERT INTO patient (id, source_id) VALUES (%s, %s)", (2, "some source id"))
+    cur.execute("SELECT * FROM patient;")
 
 
 if __name__ == '__main__':
