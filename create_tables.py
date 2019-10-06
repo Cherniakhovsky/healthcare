@@ -1,12 +1,12 @@
 import psycopg2
 
-from config.config import DB_SETTINGS as db
+import common
 
 
 def create_tables():
     """ Creates tables in already defined PostgreSQL"""
     try:
-        conn = get_db_connection()
+        conn = common.get_db_connection()
         cur = conn.cursor()
         execute_commands(cur)
 
@@ -30,7 +30,7 @@ def execute_commands(cur):
         """
         CREATE TABLE IF NOT EXISTS patient (
             id serial primary key,
-            source_id varchar(20) NOT NULL,
+            source_id uuid NOT NULL,
             birth_date date,
             gender varchar(10),
             race_code varchar(40),
@@ -79,18 +79,6 @@ def execute_commands(cur):
     )
     for command in commands:
         cur.execute(command)
-    cur.execute("INSERT INTO patient (id, source_id) VALUES (%s, %s)", (2, "some source id"))
-    cur.execute("SELECT * FROM patient;")
-
-
-def get_db_connection():
-    conn = psycopg2.connect(
-        host=db['HOST'],
-        port=db['PORT'],
-        dbname=db['NAME'],
-        user=db['USER']
-    )
-    return conn
 
 
 if __name__ == '__main__':
