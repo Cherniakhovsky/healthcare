@@ -43,7 +43,7 @@ def execute_commands(cur):
         """
         CREATE TABLE IF NOT EXISTS encounter (
                 id serial primary key,
-                source_id varchar(20) NOT NULL,
+                source_id text NOT NULL,
                 patient_id serial references patient(id) NOT NULL,
                 start_date date NOT NULL,
                 end_date date NOT NULL,
@@ -80,7 +80,7 @@ def execute_commands(cur):
     for command in commands:
         cur.execute(command)
 
-    cur.execute("INSERT INTO patient (id, source_id) VALUES (%s, %s)", (2, "some source id"))
+    # cur.execute("INSERT INTO patient (id, source_id) VALUES (%s, %s)", (2, "some source id"))
     cur.execute("SELECT * FROM patient;")
 
 
