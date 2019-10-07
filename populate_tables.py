@@ -26,6 +26,8 @@ def populate_tables():
 
         populate_procedure_table(cur, report)
 
+        _populate_observation_table(cur, report)
+
 
         # cur.execute("SELECT COUNT(*) FROM procedure;")
         # cur.execute("select * from procedure, patient where procedure.patient_id = patient.id;")
@@ -121,6 +123,30 @@ def populate_procedure_table(cur, report):
 
     report['insert_time']['procedure'] = round(time.time() - start, 2)
 
+
+def _populate_observation_table(cur, report):
+    """
+
+    """
+
+
+    procedure_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Observation.ndjson'
+    procedures_data = get_ndjson(procedure_link)
+
+    start = time.time()
+    for data in procedures_data:
+        new_data = dict()
+
+        obligatory_result = _handle_obligatory_observation_fields(cur, data, new_data)
+
+        if not obligatory_result:
+            continue
+
+        _handle_optional_observation_fields(cur, data, new_data)
+
+        _save_observations(cur, new_data)
+
+    report['insert_time']['observation'] = round(time.time() - start, 2)
 
 
 def _handle_obligatory_patient_fields(cur, data, new_data):
@@ -284,7 +310,7 @@ def _handle_obligatory_procedure_fields(cur, data, new_data):
 
     try:
         # source_id
-        new_data['id'] = data['id']
+        new_data['source_id'] = data['id']
 
         # patient_id
         patient_source_id = data['subject']['reference'].split('/')[-1]
@@ -336,7 +362,7 @@ def _save_procedures(cur, new_data):
                     type_code_system
                 )
                 VALUES (
-                    %(id)s,
+                    %(source_id)s,
                     %(patient_id)s,
                     %(encounter_id)s,
                     %(procedure_date)s,
@@ -344,6 +370,72 @@ def _save_procedures(cur, new_data):
                     %(type_code_system)s
                 )
                 """, new_data)
+
+
+def _handle_obligatory_observation_fields(cur, data, new_data):
+    try:
+        # source_id
+        new_data['source_id'] = data['id']
+
+        # patient_id
+        patient_source_id = data['subject']['reference'].split('/')[-1]
+        query = f"SELECT id FROM patient WHERE patient.source_id = '{patient_source_id}'"
+        cur.execute(query)
+        new_data['patient_id'] = cur.fetchone()[0]
+
+        # observation_date
+        new_data['observation_date'] = data['effectiveDateTime']
+
+
+
+
+        return True
+    except:
+        with open("logs/skipped_observations.ndjson", "a+") as f:
+            dict_to_ndjson(data, f)
+        return False
+
+
+def _handle_optional_observation_fields(cur, data, new_data):
+
+    # encounter_id
+    try:
+        # print(new_data['subject']['reference'].split('/')[-1])
+        encounter_source_id = data['context']['reference'].split('/')[-1]
+        query = f"SELECT id FROM encounter WHERE encounter.source_id = '{encounter_source_id}'"
+        cur.execute(query)
+        new_data['encounter_id'] = cur.fetchone()[0]
+    except:
+        new_data['encounter_id'] = None
+
+    # 
+
+
+def _save_observations(cur, new_data):
+    cur.execute("""
+            INSERT INTO procedure (
+                source_id,
+                patient_id,
+                encounter_id,
+                observation_date,
+                type_code,
+                type_code_system,
+                value,
+                unit_code,
+                unit_code_system
+            )
+            VALUES (
+                %(source_id)s,
+                %(patient_id)s,
+                %(encounter_id)s,
+                %(observation_date)s,
+                %(type_code)s,
+                %(type_code_system)s,
+                %(value)s,
+                %(unit_code)s,
+                %(unit_code_system)s
+            )
+            """, new_data)
 
 
 def get_ndjson(link):
