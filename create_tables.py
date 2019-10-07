@@ -44,7 +44,7 @@ def execute_commands(cur):
         CREATE TABLE IF NOT EXISTS encounter (
                 id serial primary key,
                 source_id text NOT NULL,
-                patient_id serial references patient(id) NOT NULL,
+                patient_id int references patient(id) NOT NULL,
                 start_date date NOT NULL,
                 end_date date NOT NULL,
                 type_code varchar(40),
@@ -55,8 +55,8 @@ def execute_commands(cur):
         CREATE TABLE IF NOT EXISTS procedure (
                 id serial primary key,
                 source_id varchar(20) NOT NULL,
-                patient_id serial references patient(id) NOT NULL,
-                encounter_id serial references encounter(id),
+                patient_id int references patient(id) NOT NULL,
+                encounter_id int references encounter(id),
                 procedure_date timestamp with time zone NOT NULL,
                 type_code varchar(40) NOT NULL,
                 type_code_system varchar(40) NOT NULL
@@ -66,8 +66,8 @@ def execute_commands(cur):
         CREATE TABLE IF NOT EXISTS observation (
                 id serial primary key,
                 source_id varchar(20) NOT NULL,
-                patient_id serial references patient(id) NOT NULL,
-                encounter_id serial references encounter(id),
+                patient_id int references patient(id) NOT NULL,
+                encounter_id int references encounter(id),
                 observation_date timestamp with time zone NOT NULL,
                 type_code varchar(40) NOT NULL,
                 type_code_system varchar(40) NOT NULL,
