@@ -4,23 +4,37 @@ import common
 import psycopg2
 import psycopg2.extras
 import time
+import json
 
 
 def populate_tables():
-    populate_speed_in_sec = {'patient': 0, 'encounter': 0}
+    report = {
+        'insert_time': {
+            'patient': 0,
+            'encounter': 0,
+            'procedure': 0,
+            'observation': 0
+            }
+    }
     try:
         conn = common.get_db_connection()
         cur = conn.cursor()
 
-        populate_patient_table(cur, populate_speed_in_sec)
+        populate_patient_table(cur, report)
 
-        populate_encounter_table(cur, populate_speed_in_sec)
+        populate_encounter_table(cur, report)
+
+        populate_procedure_table(cur, report)
 
 
-        cur.execute("SELECT COUNT(*) FROM encounter;")
-        count_records = cur.fetchone()
-        print(f'\n* There are {count_records[0]} in encounter table')
-        print(populate_speed_in_sec)
+        # cur.execute("SELECT COUNT(*) FROM procedure;")
+        # cur.execute("select * from procedure, patient where procedure.patient_id = patient.id;")
+        # count_records = cur.fetchone()
+        # print(cur.description)
+        # for record in cur.fetchall():
+        #     print(record)
+        # print(f'\n* There are {count_records[0]} in procedure table')
+        print('Report is: ', report)
 
         cur.close()
         conn.commit()
@@ -33,10 +47,9 @@ def populate_tables():
             conn.close()
 
 
-def populate_patient_table(cur, count_performance):
+def populate_patient_table(cur, report):
     """
 
-    There are not required fields in try/except
     """
 
     patients_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Patient.ndjson'
@@ -44,120 +57,302 @@ def populate_patient_table(cur, count_performance):
 
 
     start = time.time()
-    for patient_data in patients_data:
-        try:
-            patient_data['country'] = patient_data['address'][0]['country']
-        except:
-            patient_data['country'] = None
+    for data in patients_data:
 
-        try:
-            patient_data['race_code'] = patient_data['extension'][0]['valueCodeableConcept']['coding'][0]['code']
-        except:
-            patient_data['race_code'] = None
+        new_data = dict()
 
-        try:
-            patient_data['race_code_system'] = patient_data['extension'][0]['valueCodeableConcept']['coding'][0]['system']
-        except:
-            patient_data['race_code_system'] = None
+        obligatory_result = _handle_obligatory_patient_fields(cur, data, new_data)
 
-        try:
-            patient_data['ethnicity_code'] = patient_data['extension'][1]['valueCodeableConcept']['coding'][0]['code']
-        except:
-            patient_data['ethnicity_code'] = None
+        if not obligatory_result:
+            continue
 
-        try:
-            patient_data['ethnicity_code_system'] = patient_data['extension'][1]['valueCodeableConcept']['coding'][0]['system']
-        except:
-            patient_data['ethnicity_code_system'] = None
+        _handle_optional_patient_fields(cur, data, new_data)
+
+        _save_patients(cur, new_data)
+
+    report['insert_time']['patient'] = round(time.time() - start, 2)
 
 
-        cur.execute("""
-            INSERT INTO patient (
-                source_id,
-                gender,
-                birth_date,
-                country,
-                race_code,
-                race_code_system,
-                ethnicity_code,
-                ethnicity_code_system
-            )
-            VALUES (
-                %(id)s,
-                %(gender)s,
-                %(birthDate)s,
-                %(country)s,
-                %(race_code)s,
-                %(race_code_system)s,
-                %(ethnicity_code)s,
-                %(ethnicity_code_system)s
-            )
-            """, patient_data)
-
-    count_performance['patient'] = round(time.time() - start, 2)
-
-
-def populate_encounter_table(cur, count_performance):
+def populate_encounter_table(cur, report):
     """
 
-    There are not required fields in try/except
     """
 
     encounter_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Encounter.ndjson'
     encounters_data = get_ndjson(encounter_link)
 
     start = time.time()
-    for encounter_data in encounters_data:
+    for data in encounters_data:
 
-        ref_id = encounter_data['subject']['reference'].split('/')[-1]
+        new_data = dict()
 
-        query = f"SELECT id FROM patient WHERE patient.source_id = '{ref_id}'"
+        obligatory_result = _handle_obligatory_encounter_fields(cur, data, new_data)
+
+        if not obligatory_result:
+            continue
+
+        _handle_optional_encounter_fields(cur, data, new_data)
+
+        _save_encounters(cur, new_data)
+
+    report['insert_time']['encounter'] = round(time.time() - start, 2)
+
+
+def populate_procedure_table(cur, report):
+    """
+
+    """
+
+    procedure_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Procedure.ndjson'
+    procedures_data = get_ndjson(procedure_link)
+
+    start = time.time()
+    for data in procedures_data:
+        new_data = dict()
+
+        obligatory_result = _handle_obligatory_procedure_fields(cur, data, new_data)
+
+        if not obligatory_result:
+            continue
+
+        _handle_optional_procedure_fields(cur, data, new_data)
+
+        _save_procedures(cur, new_data)
+
+    report['insert_time']['procedure'] = round(time.time() - start, 2)
+
+
+
+def _handle_obligatory_patient_fields(cur, data, new_data):
+
+    try:
+        # source_id
+        new_data['id'] = data['id']
+        return True
+
+    except:
+        with open("logs/skipped_patients.ndjson", "a+") as f:
+            dict_to_ndjson(data, f)
+        return False
+
+
+def _handle_optional_patient_fields(cur, data, new_data):
+        try:
+            new_data['birth_date'] = data['birthDate']
+        except:
+            new_data['birth_date'] = None
+
+        try:
+            new_data['gender'] = data['gender']
+        except:
+            new_data['gender'] = None
+
+        try:
+            new_data['race_code'] = data['extension'][0]['valueCodeableConcept']['coding'][0]['code']
+        except:
+            new_data['race_code'] = None
+
+        try:
+            new_data['race_code_system'] = data['extension'][0]['valueCodeableConcept']['coding'][0]['system']
+        except:
+            new_data['race_code_system'] = None
+
+        try:
+            new_data['ethnicity_code'] = data['extension'][1]['valueCodeableConcept']['coding'][0]['code']
+        except:
+            new_data['ethnicity_code'] = None
+
+        try:
+            new_data['ethnicity_code_system'] = data['extension'][1]['valueCodeableConcept']['coding'][0]['system']
+        except:
+            new_data['ethnicity_code_system'] = None
+
+        try:
+            new_data['country'] = data['address'][0]['country']
+        except:
+            new_data['country'] = None
+
+
+def _save_patients(cur, new_data):
+    cur.execute("""
+        INSERT INTO patient (
+            source_id,
+            gender,
+            birth_date,
+            country,
+            race_code,
+            race_code_system,
+            ethnicity_code,
+            ethnicity_code_system
+        )
+        VALUES (
+            %(id)s,
+            %(gender)s,
+            %(birth_date)s,
+            %(country)s,
+            %(race_code)s,
+            %(race_code_system)s,
+            %(ethnicity_code)s,
+            %(ethnicity_code_system)s
+        )
+        """, new_data)
+
+
+def _handle_obligatory_encounter_fields(cur, data, new_data):
+
+    try:
+        # source_id
+        new_data['id'] = data['id']
+
+        # patient_id
+        patient_source_id = data['subject']['reference'].split('/')[-1]
+        query = f"SELECT id FROM patient WHERE patient.source_id = '{patient_source_id}'"
         cur.execute(query)
-        encounter_data['patient_id'] = cur.fetchone()[0]
+        new_data['patient_id'] = cur.fetchone()[0]
 
-        encounter_data['start_date'] = encounter_data['period']['start']
-        encounter_data['end_date'] = encounter_data['period']['end']
-        encounter_data['type_code'] = encounter_data['type'][0]['coding'][0]['code']
-        encounter_data['type_code_system'] = encounter_data['type'][0]['coding'][0]['system']
+        # start_date
+        new_data['start_date'] = data['period']['start']
 
+        # end_date
+        new_data['end_date'] = data['period']['end']
+
+
+        # new_data['type_code'] = data['type'][0]['coding'][0]['code']
+        # new_data['type_code_system'] = data['type'][0]['coding'][0]['system']
+
+        #
+        # # patient_id
+        # patient_source_id = data['subject']['reference'].split('/')[-1]
+        # query = f"SELECT id FROM patient WHERE patient.source_id = '{patient_source_id}'"
+        # cur.execute(query)
+        # new_data['patient_id'] = cur.fetchone()[0]
+        #
+        # # procedure_date
+        # if data.get('performedDateTime'):
+        #     new_data['procedure_date'] = data['performedDateTime']
+        # else:
+        #     new_data['procedure_date'] = data['performedPeriod']['start']
+        #
+        # # type_code
+        # new_data['type_code'] = data['code']['coding'][0]['code']
+        #
+        # # type_code_system
+        # new_data['type_code_system'] = data['code']['coding'][0]['system']
+
+        return True
+
+    except:
+        with open("logs/skipped_encounters.ndjson", "a+") as f:
+            dict_to_ndjson(data, f)
+        return False
+
+
+def _handle_optional_encounter_fields(cur, data, new_data):
+        try:
+            new_data['type_code'] = data['type'][0]['coding'][0]['code']
+        except:
+            new_data['type_code'] = None
 
         try:
-            encounter_data['type_code'] = encounter_data['type'][0]['coding'][0]['code']
+            new_data['type_code_system'] = data['type'][0]['coding'][0]['system']
         except:
-            encounter_data['type_code'] = None
-
-        try:
-            encounter_data['type_code_system'] = encounter_data['type'][0]['coding'][0]['system']
-        except:
-            encounter_data['type_code_system'] = None
+            new_data['type_code_system'] = None
 
 
-        cur.execute("""
-                INSERT INTO encounter (
+def _save_encounters(cur, new_data):
+    cur.execute("""
+        INSERT INTO encounter (
+            source_id,
+            patient_id,
+            start_date,
+            end_date,
+            type_code,
+            type_code_system
+        )
+        VALUES (
+            %(id)s,
+            %(patient_id)s,
+            %(start_date)s,
+            %(end_date)s,
+            %(type_code)s,
+            %(type_code_system)s
+        )
+        """, new_data)
+
+
+def _handle_obligatory_procedure_fields(cur, data, new_data):
+
+    try:
+        # source_id
+        new_data['id'] = data['id']
+
+        # patient_id
+        patient_source_id = data['subject']['reference'].split('/')[-1]
+        query = f"SELECT id FROM patient WHERE patient.source_id = '{patient_source_id}'"
+        cur.execute(query)
+        new_data['patient_id'] = cur.fetchone()[0]
+
+        # procedure_date
+        if data.get('performedDateTime'):
+            new_data['procedure_date'] = data['performedDateTime']
+        else:
+            new_data['procedure_date'] = data['performedPeriod']['start']
+
+        # type_code
+        new_data['type_code'] = data['code']['coding'][0]['code']
+
+        # type_code_system
+        new_data['type_code_system'] = data['code']['coding'][0]['system']
+
+        return True
+
+    except:
+        with open("logs/skipped_procedures.ndjson", "a+") as f:
+            dict_to_ndjson(data, f)
+        return False
+
+
+def _handle_optional_procedure_fields(cur, data, new_data):
+
+    # encounter_id
+    try:
+        # print(new_data['subject']['reference'].split('/')[-1])
+        encounter_source_id = data['context']['reference'].split('/')[-1]
+        query = f"SELECT id FROM encounter WHERE encounter.source_id = '{encounter_source_id}'"
+        cur.execute(query)
+        new_data['encounter_id'] = cur.fetchone()[0]
+    except:
+        new_data['encounter_id'] = None
+
+
+def _save_procedures(cur, new_data):
+    cur.execute("""
+                INSERT INTO procedure (
                     source_id,
                     patient_id,
-                    start_date,
-                    end_date,
+                    encounter_id,
+                    procedure_date,
                     type_code,
                     type_code_system
                 )
                 VALUES (
                     %(id)s,
                     %(patient_id)s,
-                    %(start_date)s,
-                    %(end_date)s,
+                    %(encounter_id)s,
+                    %(procedure_date)s,
                     %(type_code)s,
                     %(type_code_system)s
                 )
-                """, encounter_data)
-
-    count_performance['encounter'] = round(time.time() - start, 2)
-
+                """, new_data)
 
 
 def get_ndjson(link):
     response = requests.get(link)
     return response.json(cls=ndjson.Decoder)
+
+def dict_to_ndjson(dict, file):
+    json.dump(dict, file)
+    file.write('\n')
 
 
 if __name__ == '__main__':
