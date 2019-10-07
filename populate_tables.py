@@ -20,22 +20,14 @@ def populate_tables():
         conn = common.get_db_connection()
         cur = conn.cursor()
 
-        populate_patient_table(cur, report)
+        _populate_patient_table(cur, report)
 
-        populate_encounter_table(cur, report)
+        _populate_encounter_table(cur, report)
 
-        populate_procedure_table(cur, report)
+        _populate_procedure_table(cur, report)
 
         _populate_observation_table(cur, report)
 
-
-        # cur.execute("SELECT COUNT(*) FROM procedure;")
-        # cur.execute("select * from procedure, patient where procedure.patient_id = patient.id;")
-        # count_records = cur.fetchone()
-        # print(cur.description)
-        # for record in cur.fetchall():
-        #     print(record)
-        # print(f'\n* There are {count_records[0]} in procedure table')
         print('Report is: ', report)
 
         cur.close()
@@ -49,14 +41,13 @@ def populate_tables():
             conn.close()
 
 
-def populate_patient_table(cur, report):
+def _populate_patient_table(cur, report):
     """
 
     """
 
     patients_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Patient.ndjson'
     patients_data = get_ndjson(patients_link)
-
 
     start = time.time()
     for data in patients_data:
@@ -75,7 +66,7 @@ def populate_patient_table(cur, report):
     report['insert_time']['patient'] = round(time.time() - start, 2)
 
 
-def populate_encounter_table(cur, report):
+def _populate_encounter_table(cur, report):
     """
 
     """
@@ -100,7 +91,7 @@ def populate_encounter_table(cur, report):
     report['insert_time']['encounter'] = round(time.time() - start, 2)
 
 
-def populate_procedure_table(cur, report):
+def _populate_procedure_table(cur, report):
     """
 
     """
@@ -242,29 +233,6 @@ def _handle_obligatory_encounter_fields(cur, data, new_data):
         # end_date
         new_data['end_date'] = data['period']['end']
 
-
-        # new_data['type_code'] = data['type'][0]['coding'][0]['code']
-        # new_data['type_code_system'] = data['type'][0]['coding'][0]['system']
-
-        #
-        # # patient_id
-        # patient_source_id = data['subject']['reference'].split('/')[-1]
-        # query = f"SELECT id FROM patient WHERE patient.source_id = '{patient_source_id}'"
-        # cur.execute(query)
-        # new_data['patient_id'] = cur.fetchone()[0]
-        #
-        # # procedure_date
-        # if data.get('performedDateTime'):
-        #     new_data['procedure_date'] = data['performedDateTime']
-        # else:
-        #     new_data['procedure_date'] = data['performedPeriod']['start']
-        #
-        # # type_code
-        # new_data['type_code'] = data['code']['coding'][0]['code']
-        #
-        # # type_code_system
-        # new_data['type_code_system'] = data['code']['coding'][0]['system']
-
         return True
 
     except:
@@ -386,10 +354,17 @@ def _handle_obligatory_observation_fields(cur, data, new_data):
         # observation_date
         new_data['observation_date'] = data['effectiveDateTime']
 
+        # type_code
+        new_data['type_code'] = data['code']['coding'][0]['code']
 
+        # type_code_system
+        new_data['type_code_system'] = data['code']['coding'][0]['system']
 
+        # value
+        new_data['value'] = data['valueQuantity']['value']
 
         return True
+
     except:
         with open("logs/skipped_observations.ndjson", "a+") as f:
             dict_to_ndjson(data, f)
@@ -408,12 +383,22 @@ def _handle_optional_observation_fields(cur, data, new_data):
     except:
         new_data['encounter_id'] = None
 
-    # 
+    # unit_code
+    try:
+        new_data['unit_code'] = data['valueQuantity']['unit']
+    except:
+        new_data['unit_code'] = None
+
+    # unit_code_system
+    try:
+        new_data['unit_code_system'] = data['valueQuantity']['system']
+    except:
+        new_data['unit_code_system'] = None
 
 
 def _save_observations(cur, new_data):
     cur.execute("""
-            INSERT INTO procedure (
+            INSERT INTO observation (
                 source_id,
                 patient_id,
                 encounter_id,
