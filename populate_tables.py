@@ -120,7 +120,6 @@ def _populate_observation_table(cur, report):
 
     """
 
-
     procedure_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Observation.ndjson'
     procedures_data = get_ndjson(procedure_link)
 
@@ -128,14 +127,30 @@ def _populate_observation_table(cur, report):
     for data in procedures_data:
         new_data = dict()
 
-        obligatory_result = _handle_obligatory_observation_fields(cur, data, new_data)
+        if data.get('component'):
 
-        if not obligatory_result:
-            continue
+            for component in data['component']:
+                new_data = dict()
 
-        _handle_optional_observation_fields(cur, data, new_data)
+                obligatory_result = _handle_obligatory_observation_fields_with_component(cur, data, new_data, component)
 
-        _save_observations(cur, new_data)
+                if not obligatory_result:
+                    continue
+
+                _handle_optional_observation_fields_with_component(cur, data, new_data, component)
+
+                _save_observations(cur, new_data)
+
+        else:
+
+            obligatory_result = _handle_obligatory_observation_fields(cur, data, new_data)
+
+            if not obligatory_result:
+                continue
+
+            _handle_optional_observation_fields(cur, data, new_data)
+
+            _save_observations(cur, new_data)
 
     report['insert_time']['observation'] = round(time.time() - start, 2)
 
@@ -371,6 +386,39 @@ def _handle_obligatory_observation_fields(cur, data, new_data):
         return False
 
 
+def _handle_obligatory_observation_fields_with_component(cur, data, new_data, component):
+
+    try:
+        # source_id
+        new_data['source_id'] = data['id']
+
+        # patient_id
+        patient_source_id = data['subject']['reference'].split('/')[-1]
+        query = f"SELECT id FROM patient WHERE patient.source_id = '{patient_source_id}'"
+        cur.execute(query)
+        new_data['patient_id'] = cur.fetchone()[0]
+
+        # observation_date
+        new_data['observation_date'] = data['effectiveDateTime']
+
+        # type_code component[].code.coding[0].code
+        new_data['type_code'] = component['code']['coding'][0]['code']
+
+        # type_code_system component[].code.coding[0].system
+        new_data['type_code_system'] = component['code']['coding'][0]['system']
+
+        # value component[].valueQuantity.value
+        new_data['value'] = component['valueQuantity']['value']
+
+        return True
+
+    except:
+        with open("logs/skipped_observations.ndjson", "a+") as f:
+            dict_to_ndjson(data, f)
+        return False
+
+
+
 def _handle_optional_observation_fields(cur, data, new_data):
 
     # encounter_id
@@ -392,6 +440,31 @@ def _handle_optional_observation_fields(cur, data, new_data):
     # unit_code_system
     try:
         new_data['unit_code_system'] = data['valueQuantity']['system']
+    except:
+        new_data['unit_code_system'] = None
+
+
+def _handle_optional_observation_fields_with_component(cur, data, new_data, component):
+
+    # encounter_id
+    try:
+        # print(new_data['subject']['reference'].split('/')[-1])
+        encounter_source_id = data['context']['reference'].split('/')[-1]
+        query = f"SELECT id FROM encounter WHERE encounter.source_id = '{encounter_source_id}'"
+        cur.execute(query)
+        new_data['encounter_id'] = cur.fetchone()[0]
+    except:
+        new_data['encounter_id'] = None
+
+    # unit_code component[].valueQuantity.unit
+    try:
+        new_data['unit_code'] = component['valueQuantity']['unit']
+    except:
+        new_data['unit_code'] = None
+
+    # unit_code_system component[].valueQuantity.system
+    try:
+        new_data['unit_code_system'] = component['valueQuantity']['system']
     except:
         new_data['unit_code_system'] = None
 
