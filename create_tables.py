@@ -80,7 +80,11 @@ def execute_commands(cur):
     for command in commands:
         cur.execute(command)
 
-    # cur.execute("SELECT * FROM patient;")
+    cur.execute("SELECT * FROM patient;")
+    cur.execute("SELECT * FROM encounter;")
+    cur.execute("SELECT * FROM procedure;")
+    cur.execute("SELECT * FROM observation;")
+
 
     print('TABLES CREATED')
 
