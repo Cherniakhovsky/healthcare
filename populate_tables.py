@@ -1,13 +1,17 @@
 import ndjson
-import requests
-import common
 import psycopg2
 import psycopg2.extras
+import requests
 import time
 import json
 
+import common
+
 
 def populate_tables():
+    """
+    Inserts medical example data to four tables retrieved from link
+    """
     report = {
         'insert_time': {
             'patient': 0,
@@ -28,7 +32,11 @@ def populate_tables():
 
         _populate_observation_table(cur, report)
 
-        print('Report is: ', report)
+        print('\nTime spent for populating tables: ')
+        print(f'Patient - {report["insert_time"]["patient"]} sec')
+        print(f'Encounter - {report["insert_time"]["encounter"]} sec')
+        print(f'Procedure - {report["insert_time"]["procedure"]} sec')
+        print(f'Observation - {report["insert_time"]["observation"]} sec')
 
         cur.close()
         conn.commit()
@@ -43,7 +51,7 @@ def populate_tables():
 
 def _populate_patient_table(cur, report):
     """
-
+    Inserts patient data
     """
 
     patients_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Patient.ndjson'
@@ -63,12 +71,14 @@ def _populate_patient_table(cur, report):
 
         _save_patients(cur, new_data)
 
+    print('Patient TABLE populated')
+
     report['insert_time']['patient'] = round(time.time() - start, 2)
 
 
 def _populate_encounter_table(cur, report):
     """
-
+    Inserts encounter data
     """
 
     encounter_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Encounter.ndjson'
@@ -88,12 +98,14 @@ def _populate_encounter_table(cur, report):
 
         _save_encounters(cur, new_data)
 
+    print('Encounter TABLE populated')
+
     report['insert_time']['encounter'] = round(time.time() - start, 2)
 
 
 def _populate_procedure_table(cur, report):
     """
-
+    Inserts procedure data
     """
 
     procedure_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Procedure.ndjson'
@@ -112,12 +124,14 @@ def _populate_procedure_table(cur, report):
 
         _save_procedures(cur, new_data)
 
+    print('Procedure TABLE populated')
+
     report['insert_time']['procedure'] = round(time.time() - start, 2)
 
 
 def _populate_observation_table(cur, report):
     """
-
+    Inserts observation data
     """
 
     procedure_link = 'https://raw.githubusercontent.com/smart-on-fhir/flat-fhir-files/master/r3/Observation.ndjson'
@@ -132,18 +146,21 @@ def _populate_observation_table(cur, report):
             for component in data['component']:
                 new_data = dict()
 
-                obligatory_result = _handle_obligatory_observation_fields_with_component(cur, data, new_data, component)
+                obligatory_result = _handle_obligatory_observation_fields_with_component(
+                    cur, data, new_data, component)
 
                 if not obligatory_result:
                     continue
 
-                _handle_optional_observation_fields_with_component(cur, data, new_data, component)
+                _handle_optional_observation_fields_with_component(
+                    cur, data, new_data, component)
 
                 _save_observations(cur, new_data)
 
         else:
 
-            obligatory_result = _handle_obligatory_observation_fields(cur, data, new_data)
+            obligatory_result = _handle_obligatory_observation_fields(
+                cur, data, new_data)
 
             if not obligatory_result:
                 continue
@@ -151,6 +168,8 @@ def _populate_observation_table(cur, report):
             _handle_optional_observation_fields(cur, data, new_data)
 
             _save_observations(cur, new_data)
+
+    print('Observation TABLE populated')
 
     report['insert_time']['observation'] = round(time.time() - start, 2)
 
