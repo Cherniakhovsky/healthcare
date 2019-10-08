@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# >>> install requirements.txt
+pip3 install -r requirements.txt
 
 # IMPORT SETTINGS
 DB_SETTINGS=$(python -c "from config.config import DB_SETTINGS; print(DB_SETTINGS)")
@@ -14,3 +14,6 @@ python create_tables.py
 
 # POPULATE TABLES
 python populate_tables.py
+
+# PROCESS TABLES
+python process_tables.py
