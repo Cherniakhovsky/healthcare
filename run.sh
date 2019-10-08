@@ -12,3 +12,5 @@ docker exec -it my_postgres psql -U postgres -c "create database $DB_NAME"
 # CREATE TABLES
 python create_tables.py
 
+# POPULATE TABLES
+python populate_tables.py
