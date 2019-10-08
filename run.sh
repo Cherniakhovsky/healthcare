@@ -2,6 +2,9 @@
 
 pip3 install -r requirements.txt
 
+# CREATE POSTGRESQL IN CONTAINER
+docker-compose up --build -d
+
 # IMPORT SETTINGS
 DB_SETTINGS=$(python -c "from config.config import DB_SETTINGS; print(DB_SETTINGS)")
 DB_NAME=$(python -c "print($DB_SETTINGS['NAME'])")
