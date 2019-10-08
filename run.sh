@@ -1,10 +1,8 @@
 #!/bin/bash
 
-python -m venv venv && source venv/bin/activate &&
-
 pip3 install -r requirements.txt &&
 
-mkdir logs &&
+mkdir -p logs &&
 
 # CREATE POSTGRESQL IN CONTAINER
 docker-compose up --build -d &&
