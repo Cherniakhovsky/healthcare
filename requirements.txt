@@ -1,4 +1,5 @@
+docker==4.1.0
+ndjson==0.2.0
 psycopg2-binary==2.8.3
 pytest==5.2.1
 requests==2.22.0
-ndjson==0.2.0
