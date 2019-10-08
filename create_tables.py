@@ -54,7 +54,7 @@ def execute_commands(cur):
         """
         CREATE TABLE IF NOT EXISTS procedure (
                 id serial primary key,
-                source_id varchar(20) NOT NULL,
+                source_id text NOT NULL,
                 patient_id int references patient(id) NOT NULL,
                 encounter_id int references encounter(id),
                 procedure_date timestamp with time zone NOT NULL,
@@ -65,7 +65,7 @@ def execute_commands(cur):
         """
         CREATE TABLE IF NOT EXISTS observation (
                 id serial primary key,
-                source_id varchar(20) NOT NULL,
+                source_id text NOT NULL,
                 patient_id int references patient(id) NOT NULL,
                 encounter_id int references encounter(id),
                 observation_date timestamp with time zone NOT NULL,
@@ -80,9 +80,9 @@ def execute_commands(cur):
     for command in commands:
         cur.execute(command)
 
-    # cur.execute("INSERT INTO patient (id, source_id) VALUES (%s, %s)", (2, "some source id"))
-    cur.execute("SELECT * FROM patient;")
+    # cur.execute("SELECT * FROM patient;")
 
+    print('TABLES CREATED')
 
 if __name__ == '__main__':
     create_tables()
