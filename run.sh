@@ -1,22 +1,22 @@
 #!/bin/bash
 
-pip3 install -r requirements.txt
+python -m venv venv && source venv/bin/activate &&
+
+pip3 install -r requirements.txt &&
+
+mkdir logs &&
 
 # CREATE POSTGRESQL IN CONTAINER
-docker-compose up --build -d
+docker-compose up --build -d &&
 
 # IMPORT SETTINGS
-DB_SETTINGS=$(python -c "from config.config import DB_SETTINGS; print(DB_SETTINGS)")
-DB_NAME=$(python -c "print($DB_SETTINGS['NAME'])")
+DB_SETTINGS=$(python -c "from config.config import DB_SETTINGS; print(DB_SETTINGS)") &&
+DB_NAME=$(python -c "print($DB_SETTINGS['NAME'])") &&
 
-# CREATE DB
-docker exec -it my_postgres psql -U postgres -c "create database $DB_NAME"
+docker exec -it my_postgres psql -U postgres -c "create database $DB_NAME" &&
 
-# CREATE TABLES
-python create_tables.py
+python create_tables.py &&
 
-# POPULATE TABLES
-python populate_tables.py
+python populate_tables.py &&
 
-# PROCESS TABLES
 python process_tables.py
