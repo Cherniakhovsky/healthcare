@@ -1,6 +1,6 @@
 import psycopg2
 
-import common
+from app import common
 
 
 def create_tables():
@@ -81,11 +81,7 @@ def execute_commands(cur):
         cur.execute(command)
 
     cur.execute("SELECT * FROM patient;")
-    cur.execute("SELECT * FROM encounter;")
-    cur.execute("SELECT * FROM procedure;")
-    cur.execute("SELECT * FROM observation;")
-
-
+    cur.fetchall()
     print('TABLES CREATED')
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import pytest
 
-import populate_tables
+from app import populate_tables
 
 
 @pytest.fixture

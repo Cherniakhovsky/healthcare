@@ -1,7 +1,7 @@
 import psycopg2
 import operator
 
-import common
+from app import common
 
 
 def process_tables():
@@ -58,7 +58,8 @@ def _get_top_10_procedure_types(cur):
     cur.execute("""SELECT type_code, COUNT(type_code) 
                    FROM procedure 
                    GROUP BY type_code 
-                   ORDER BY COUNT(type_code) DESC;""")
+                   ORDER BY COUNT(type_code) DESC
+                   LIMIT 10;""")
     for record in cur:
         print(f'* {record[0]} type code is in {record[1]} rows')
 

@@ -1,5 +1,5 @@
 DB_SETTINGS = {
-    'NAME': 'db_9',
+    'NAME': 'my_test_db',
     'HOST': 'localhost',
     'PORT': 54320,
     'USER': 'postgres'

@@ -4,6 +4,9 @@ pip3 install -r requirements.txt &&
 
 mkdir -p logs &&
 
+# START TESTS
+python -m tests.run_test &&
+
 # CREATE POSTGRESQL IN CONTAINER
 docker-compose up --build -d &&
 
@@ -11,10 +14,11 @@ docker-compose up --build -d &&
 DB_SETTINGS=$(python -c "from config.config import DB_SETTINGS; print(DB_SETTINGS)") &&
 DB_NAME=$(python -c "print($DB_SETTINGS['NAME'])") &&
 
+docker exec -it my_postgres psql -U postgres -c "drop database if exists $DB_NAME" &&
 docker exec -it my_postgres psql -U postgres -c "create database $DB_NAME" &&
 
-python create_tables.py &&
+python -m app.create_tables &&
 
-python populate_tables.py &&
+python -m app.populate_tables &&
 
-python process_tables.py
+python -m app.process_tables
