@@ -31,6 +31,7 @@ saved in `logs/<filename>.ndjson`
 * psycopg2-binary>=2.8.3
 * pytest>=5.2.1
 * requests>=2.22.0
+* Docker Desktop 
 
 
 #### Issues that require further improvement:
